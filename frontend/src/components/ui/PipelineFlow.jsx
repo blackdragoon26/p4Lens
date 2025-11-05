@@ -51,18 +51,17 @@ const nodeTypes = { custom: NodeComponent };
 export default function PipelineFlow({ structure }) {
   const [selected, setSelected] = useState(null);
 
-  if (!structure || Object.keys(structure).length === 0)
-    return (
-      <div className="flex items-center justify-center w-screen h-screen bg-slate-900 text-gray-400">
-        Upload a P4 file to visualize.
-      </div>
-    );
-
-  const globalTables = structure._tables || {};
-  const globalHeaders = structure._headers || {};
-  const globalExterns = structure._externs || [];
+  // Extract global data before any early returns (memoized to prevent re-renders)
+  const globalTables = useMemo(() => structure?._tables || {}, [structure]);
+  const globalHeaders = useMemo(() => structure?._headers || {}, [structure]);
+  const globalExterns = useMemo(() => structure?._externs || [], [structure]);
 
   const { nodes, edges } = useMemo(() => {
+    // Check for empty structure inside useMemo
+    if (!structure || Object.keys(structure).length === 0) {
+      return { nodes: [], edges: [] };
+    }
+
     const nodeKeys = Object.keys(structure).filter((k) => !k.startsWith("_"));
     const builtNodes = nodeKeys.map((name, i) => {
       const info = structure[name];
@@ -96,7 +95,16 @@ export default function PipelineFlow({ structure }) {
     }));
 
     return { nodes: builtNodes, edges: builtEdges };
-  }, [structure]);
+  }, [structure, globalHeaders, globalExterns]);
+
+  // Early return after hooks
+  if (!structure || Object.keys(structure).length === 0 || nodes.length === 0) {
+    return (
+      <div className="flex items-center justify-center w-screen h-screen bg-slate-900 text-gray-400">
+        Upload a P4 file to visualize.
+      </div>
+    );
+  }
 
   return (
     <div
