@@ -13,7 +13,7 @@
 #     return sections
 
 
-import re
+import re,json
 from pathlib import Path
 
 def extract_brace_block(code, start_index):
@@ -61,25 +61,72 @@ def analyze_block(block_type, body):
 
 
 def parse_p4_structure(path):
-    code = Path(path).read_text()
-    code = re.sub(r"\s+", " ", code)
+    with open(path) as f:
+        code = f.read()
 
-    # ✅ handles parameter lists before '{'
-    pattern = re.compile(r"\b(parser|control)\s+(\w+)\s*\([^)]*\)\s*\{", re.DOTALL)
-    matches = list(pattern.finditer(code))
+    structure = {}
 
-    sections = {}
-
-    for match in matches:
-        block_type = match.group(1)
-        name = match.group(2)
-        start = match.end() - 1
-        body, end = extract_brace_block(code, start)
-        if body:
-            explanation = analyze_block(block_type, body)
-            sections[name] = {
+    # --- Base blocks (parser, controls, deparser) ---
+    for block_type in ["parser", "control", "deparser"]:
+        for name in re.findall(rf"{block_type}\s+(\w+)", code):
+            structure[name] = {
                 "type": block_type,
-                "actions": explanation
+                "actions": [],
+                "tables": [],
+                "externs": [],
+                "consts": [],
+                "headers": []
             }
 
-    return sections
+    # --- Tables: match fields + keys + actions ---
+    table_pattern = re.compile(
+        r"table\s+(\w+)\s*\{[^}]*?key\s*=\s*\{([^}]*)\}[^}]*?actions\s*=\s*\{([^}]*)\}",
+        re.S,
+    )
+    tables = {}
+    for name, keys_raw, acts_raw in table_pattern.findall(code):
+        keys = [k.strip().replace("\n", " ") for k in keys_raw.split(";") if k.strip()]
+        acts = [a.strip().split("(")[0] for a in acts_raw.split(";") if a.strip()]
+        tables[name] = {"keys": keys, "actions": acts}
+    # attach to any control referencing apply(table)
+    for ctrl in structure.values():
+        if ctrl["type"] == "control":
+            applies = re.findall(r"apply\((\w+)\)", code)
+            ctrl["tables"].extend([t for t in applies if t in tables])
+
+    # --- Constants / enums ---
+    consts = re.findall(r"(?:const|#define)\s+(\w+)\s+([0-9xa-fA-F]+)", code)
+    enums = re.findall(r"enum\s+(\w+)\s*\{([^}]*)\}", code, re.S)
+    enum_map = {
+        name: [v.split("=")[0].strip() for v in body.split(",") if v.strip()]
+        for name, body in enums
+    }
+
+    # --- Externs ---
+    externs = re.findall(r"(Counter|Meter|Register|Digest)\s*<[^>]*>\s+(\w+)", code)
+    extern_objs = [{"type": e[0], "name": e[1]} for e in externs]
+
+    # --- Headers ---
+    headers = re.findall(r"header\s+(\w+)\s*\{([^}]*)\}", code, re.S)
+    header_defs = {
+        name: [
+            {"field": f.split(":")[0].strip(), "bits": f.split(":")[1].strip("; ")}
+            for f in body.split(";")
+            if ":" in f
+        ]
+        for name, body in headers
+    }
+
+    # --- Assemble global info ---
+    structure["_tables"] = tables
+    structure["_consts"] = consts
+    structure["_enums"] = enum_map
+    structure["_externs"] = extern_objs
+    structure["_headers"] = header_defs
+
+    return structure
+
+
+if __name__ == "__main__":
+    import sys
+    print(json.dumps(parse_p4_structure(sys.argv[1]), indent=2))
