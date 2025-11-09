@@ -51,13 +51,13 @@ const nodeTypes = { custom: NodeComponent };
 export default function PipelineFlow({ structure }) {
   const [selected, setSelected] = useState(null);
 
-  // Extract global data before any early returns (memoized to prevent re-renders)
-  const globalTables = useMemo(() => structure?._tables || {}, [structure]);
-  const globalHeaders = useMemo(() => structure?._headers || {}, [structure]);
-  const globalExterns = useMemo(() => structure?._externs || [], [structure]);
+  // Extract global data (always call hooks unconditionally)
+  const globalTables = structure?._tables || {};
+  const globalHeaders = structure?._headers || {};
+  const globalExterns = structure?._externs || [];
 
+  // Always call useMemo, check for empty inside
   const { nodes, edges } = useMemo(() => {
-    // Check for empty structure inside useMemo
     if (!structure || Object.keys(structure).length === 0) {
       return { nodes: [], edges: [] };
     }
@@ -95,9 +95,10 @@ export default function PipelineFlow({ structure }) {
     }));
 
     return { nodes: builtNodes, edges: builtEdges };
-  }, [structure, globalHeaders, globalExterns]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [structure]);
 
-  // Early return after hooks
+  // Early return after all hooks
   if (!structure || Object.keys(structure).length === 0 || nodes.length === 0) {
     return (
       <div className="flex items-center justify-center w-screen h-screen bg-slate-900 text-gray-400">
