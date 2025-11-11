@@ -1,48 +1,3 @@
-// import { useState } from "react";
-// import axios from "axios";
-
-// export default function App() {
-//   const [file, setFile] = useState(null);
-//   const [structure, setStructure] = useState(null);
-//   const [loading, setLoading] = useState(false);
-
-//   const upload = async () => {
-//     if (!file) return;
-//     setLoading(true);
-//     const form = new FormData();
-//     form.append("file", file);
-//     const res = await axios.post("http://localhost:8000/upload", form);
-//     setStructure(res.data.structure);
-//     setLoading(false);
-//   };
-
-//   return (
-//     <div className="flex flex-col items-center p-8 font-sans">
-//       <h1 className="text-3xl font-bold mb-6">P4Lens Lite</h1>
-//       <input
-//         type="file"
-//         className="border p-2 rounded"
-//         onChange={(e) => setFile(e.target.files[0])}
-//       />
-//       <button
-//         onClick={upload}
-//         className="bg-blue-600 text-white px-4 py-2 mt-4 rounded"
-//       >
-//         {loading ? "Parsing..." : "Upload & Parse"}
-//       </button>
-
-//       {structure && (
-//         <div className="mt-8 w-full max-w-lg text-left">
-//           <h2 className="font-semibold text-lg mb-2">Detected Structure:</h2>
-//           <pre className="bg-gray-100 p-3 rounded text-sm">
-//             {JSON.stringify(structure, null, 2)}
-//           </pre>
-//         </div>
-//       )}
-//     </div>
-//   );
-// }
-
 import { useState } from "react";
 import axios from "axios";
 import PipelineFlow from "@/components/ui/PipelineFlow";
@@ -55,7 +10,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // ---------- Upload and parse ----------
+  // Upload and parse
   const upload = async () => {
     if (!file) {
       setError("Please choose a P4 file first.");
@@ -70,7 +25,7 @@ export default function App() {
       console.log("Parsed structure:", res.data.structure);
       setStructure(res.data.structure);
     } catch (err) {
-      console.error(err);
+      console.error("Upload error:", err);
       const errorMsg = err.response?.data?.detail || err.message || "Failed to parse P4 file. Please check the file format.";
       setError(errorMsg);
     } finally {
@@ -78,94 +33,121 @@ export default function App() {
     }
   };
 
-  // ---------- Reset ----------
+  // Reset
   const reset = () => {
     setStructure(null);
     setFile(null);
     setError(null);
   };
 
-  // ---------- Loading / Upload View ----------
+  // Loading / Upload View
   if (!structure || Object.keys(structure).length === 0) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-slate-200 text-center p-6">
-        <div className="mb-8">
-          <h1 className="text-5xl font-bold text-slate-800 mb-2">P4Lens</h1>
-          <p className="text-slate-600 text-lg">Interactive P4 Program Visualizer</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 text-center p-6">
+        <div className="mb-10">
+          <div className="text-6xl mb-4">🔍</div>
+          <h1 className="text-6xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-3">
+            P4Lens
+          </h1>
+          <p className="text-slate-700 text-xl font-medium">Professional P4 Program Visualizer</p>
+          <p className="text-slate-500 text-sm mt-2">Understand every bit of your P4 pipeline</p>
         </div>
         
-        <Card className="w-full max-w-lg shadow-xl bg-white/95 backdrop-blur-md border border-gray-200">
-          <CardHeader>
-            <CardTitle className="text-2xl font-semibold text-slate-800">
-              Upload a <span className="text-blue-600">P4 Program</span>
+        <Card className="w-full max-w-2xl shadow-2xl bg-white/98 backdrop-blur-md border-2 border-gray-200">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-3xl font-bold text-slate-800">
+              Upload Your <span className="text-blue-600">P4 Program</span>
             </CardTitle>
-            <p className="text-sm text-slate-500 mt-2">
-              Visualize parser, ingress, egress, and deparser flow
+            <p className="text-sm text-slate-600 mt-3">
+              Get comprehensive visualization of parser, control blocks, deparser, and all pipeline stages
             </p>
           </CardHeader>
-          <CardContent className="flex flex-col items-center gap-4">
+          <CardContent className="flex flex-col items-center gap-6 py-6">
             <div className="w-full">
-              <input
-                type="file"
-                accept=".p4"
-                onChange={(e) => {
-                  setFile(e.target.files[0]);
-                  setError(null);
-                }}
-                className="w-full border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-              />
-              {file && (
-                <p className="text-sm text-slate-600 mt-2 font-medium">
-                  Selected: {file.name}
-                </p>
-              )}
+              <label className="block cursor-pointer">
+                <input
+                  type="file"
+                  accept=".p4"
+                  onChange={(e) => {
+                    setFile(e.target.files[0]);
+                    setError(null);
+                  }}
+                  className="hidden"
+                />
+                <div className="w-full border-2 border-dashed border-blue-300 rounded-xl p-12 text-center hover:border-blue-500 hover:bg-blue-50/50 transition-all cursor-pointer group">
+                  <div className="text-5xl mb-4 group-hover:scale-110 transition-transform">📁</div>
+                  <p className="text-lg font-semibold text-slate-700 mb-2">
+                    {file ? file.name : "Click to select P4 file"}
+                  </p>
+                  <p className="text-sm text-slate-500">
+                    {file ? "File selected ✓" : "or drag and drop your .p4 file here"}
+                  </p>
+                </div>
+              </label>
             </div>
             <Button
               onClick={upload}
               disabled={loading || !file}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed py-3 text-base font-semibold"
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed py-4 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
             >
               {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <span className="flex items-center justify-center gap-3">
+                  <svg className="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Parsing...
+                  <span>Analyzing P4 Program...</span>
                 </span>
-              ) : "Upload & Visualize"}
+              ) : (
+                <span className="flex items-center justify-center gap-2">
+                  <span>🚀</span>
+                  <span>Visualize Pipeline</span>
+                </span>
+              )}
             </Button>
             {error && (
-              <div className="w-full p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div className="w-full p-4 bg-red-50 border-2 border-red-200 rounded-lg">
                 <p className="text-sm text-red-700 font-medium">{error}</p>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <div className="mt-8 text-center">
-          <p className="text-sm text-slate-600 mb-3">
+        <div className="mt-12 text-center max-w-3xl">
+          <p className="text-sm text-slate-600 mb-6 font-medium">
             Supports P4<sub>14</sub> and P4<sub>16</sub> programs
           </p>
-          <div className="flex gap-4 justify-center text-xs text-slate-500">
-            <span>✓ Parser States</span>
-            <span>✓ Control Blocks</span>
-            <span>✓ Tables & Actions</span>
-            <span>✓ Headers</span>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 border border-gray-200">
+              <div className="text-2xl mb-2">📥</div>
+              <div className="text-xs font-semibold text-slate-700">Parser States</div>
+            </div>
+            <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 border border-gray-200">
+              <div className="text-2xl mb-2">⚙️</div>
+              <div className="text-xs font-semibold text-slate-700">Control Blocks</div>
+            </div>
+            <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 border border-gray-200">
+              <div className="text-2xl mb-2">📊</div>
+              <div className="text-xs font-semibold text-slate-700">Tables & Actions</div>
+            </div>
+            <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 border border-gray-200">
+              <div className="text-2xl mb-2">📋</div>
+              <div className="text-xs font-semibold text-slate-700">Headers</div>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // ---------- Visualization View ----------
+  // Visualization View
   return (
-    <div className="w-screen h-screen relative">
+    <div className="w-full h-screen relative overflow-hidden">
       <PipelineFlow structure={structure} />
-      <div className="absolute top-4 right-4 z-10">
+      <div className="absolute top-24 left-6 z-10">
         <Button
           onClick={reset}
-          className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md"
+          className="bg-white/90 hover:bg-white text-slate-800 px-5 py-2.5 rounded-lg shadow-lg border border-gray-200 font-medium transition-all hover:shadow-xl"
         >
           ← Upload Another File
         </Button>
