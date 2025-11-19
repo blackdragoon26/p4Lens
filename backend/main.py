@@ -64,18 +64,44 @@ async def upload_p4(file: UploadFile = File(...)):
         structure = parse_p4_structure(path)
         
         if not structure or len([k for k in structure.keys() if not k.startswith("_")]) == 0:
+            # Delete file if parsing failed
+            try:
+                if os.path.exists(path):
+                    os.remove(path)
+                    logger.info(f"Deleted file after parsing failure: {file.filename}")
+            except Exception as e:
+                logger.warning(f"Could not delete file {file.filename}: {str(e)}")
+            
             raise HTTPException(
                 status_code=400,
                 detail="Could not parse P4 structure. File may be invalid or empty."
             )
         
         logger.info(f"Successfully parsed {file.filename}")
+        
+        # Delete the uploaded file after successful parsing
+        try:
+            if os.path.exists(path):
+                os.remove(path)
+                logger.info(f"Deleted uploaded file after parsing: {file.filename}")
+        except Exception as e:
+            logger.warning(f"Could not delete file {file.filename}: {str(e)}")
+        
         return {"filename": file.filename, "structure": structure}
         
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error processing {file.filename}: {str(e)}")
+        
+        # Delete file if there was an error
+        try:
+            if os.path.exists(path):
+                os.remove(path)
+                logger.info(f"Deleted file after error: {file.filename}")
+        except Exception as del_err:
+            logger.warning(f"Could not delete file {file.filename}: {str(del_err)}")
+        
         raise HTTPException(
             status_code=500,
             detail=f"Error parsing P4 file: {str(e)}"
