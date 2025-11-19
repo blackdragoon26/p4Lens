@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Body
+from fastapi import FastAPI, UploadFile, File, HTTPException, Body, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from parser_utils import parse_p4_structure
@@ -6,9 +6,9 @@ import os
 import logging
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl.utils import get_column_letter
 import tempfile
 from typing import Dict, Any
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -26,6 +26,16 @@ app.add_middleware(
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+# Cleanup function for background tasks
+def cleanup_file(path: str):
+    """Delete file in background after response is sent."""
+    try:
+        if os.path.exists(path):
+            os.remove(path)
+            logger.info(f"Cleaned up file: {path}")
+    except Exception as e:
+        logger.error(f"Failed to cleanup {path}: {e}")
+
 @app.get("/")
 async def root():
     return {"message": "P4Lens API is running", "version": "1.0.0"}
@@ -35,7 +45,8 @@ async def health():
     return {"status": "healthy"}
 
 @app.post("/upload")
-async def upload_p4(file: UploadFile = File(...)):
+async def upload_p4(file: UploadFile = File(...), background_tasks: BackgroundTasks = None):
+    """Upload and parse P4 file."""
     # Validate file extension
     if not file.filename.endswith(".p4"):
         raise HTTPException(
@@ -43,35 +54,29 @@ async def upload_p4(file: UploadFile = File(...)):
             detail="Invalid file type. Please upload a .p4 file."
         )
     
+    # Generate unique filename to avoid conflicts
+    file_path = os.path.join(UPLOAD_DIR, f"temp_{os.getpid()}_{file.filename}")
+    
     try:
-        # Save file
-        path = os.path.join(UPLOAD_DIR, file.filename)
+        # Read and validate file content
         content = await file.read()
         
-        # Basic validation - check if file is not empty
         if not content:
             raise HTTPException(
                 status_code=400,
                 detail="Uploaded file is empty."
             )
         
-        with open(path, "wb") as f:
+        # Save file temporarily
+        with open(file_path, "wb") as f:
             f.write(content)
         
         logger.info(f"Processing P4 file: {file.filename}")
         
         # Parse structure
-        structure = parse_p4_structure(path)
+        structure = parse_p4_structure(file_path)
         
         if not structure or len([k for k in structure.keys() if not k.startswith("_")]) == 0:
-            # Delete file if parsing failed
-            try:
-                if os.path.exists(path):
-                    os.remove(path)
-                    logger.info(f"Deleted file after parsing failure: {file.filename}")
-            except Exception as e:
-                logger.warning(f"Could not delete file {file.filename}: {str(e)}")
-            
             raise HTTPException(
                 status_code=400,
                 detail="Could not parse P4 structure. File may be invalid or empty."
@@ -79,33 +84,22 @@ async def upload_p4(file: UploadFile = File(...)):
         
         logger.info(f"Successfully parsed {file.filename}")
         
-        # Delete the uploaded file after successful parsing
-        try:
-            if os.path.exists(path):
-                os.remove(path)
-                logger.info(f"Deleted uploaded file after parsing: {file.filename}")
-        except Exception as e:
-            logger.warning(f"Could not delete file {file.filename}: {str(e)}")
-        
         return {"filename": file.filename, "structure": structure}
         
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error processing {file.filename}: {str(e)}")
-        
-        # Delete file if there was an error
-        try:
-            if os.path.exists(path):
-                os.remove(path)
-                logger.info(f"Deleted file after error: {file.filename}")
-        except Exception as del_err:
-            logger.warning(f"Could not delete file {file.filename}: {str(del_err)}")
-        
         raise HTTPException(
             status_code=500,
             detail=f"Error parsing P4 file: {str(e)}"
         )
+    finally:
+        # Always cleanup the uploaded file
+        if background_tasks:
+            background_tasks.add_task(cleanup_file, file_path)
+        else:
+            cleanup_file(file_path)
 
 
 def create_excel_export(structure: dict, filename: str) -> str:
@@ -188,111 +182,6 @@ def create_excel_export(structure: dict, filename: str) -> str:
     ws_tables.column_dimensions['E'].width = 10
     ws_tables.column_dimensions['F'].width = 20
     
-    # Sheet 2: Apply Block Logic
-    ws_apply = wb.create_sheet("Apply Block Logic")
-    ws_apply.append(["Control Block Apply Logic - Main Function Blocks"])
-    ws_apply.merge_cells('A1:D1')
-    ws_apply['A1'].font = title_font
-    ws_apply['A1'].alignment = Alignment(horizontal='center', vertical='center')
-    
-    ws_apply.append([])
-    headers_apply = ["Control Block", "Condition", "Tables Applied", "Logic Flow"]
-    ws_apply.append(headers_apply)
-    
-    # Style header row
-    for col in range(1, len(headers_apply) + 1):
-        cell = ws_apply.cell(row=3, column=col)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = Alignment(horizontal='center', vertical='center')
-        cell.border = border
-    
-    # Extract control blocks and their apply logic
-    for name, info in structure.items():
-        if not name.startswith("_") and info.get("type") == "control":
-            apply_logic = info.get("apply_logic", {})
-            conditions = apply_logic.get("conditions", [])
-            tables_applied = apply_logic.get("tables_applied", [])
-            logic = apply_logic.get("logic", [])
-            
-            if conditions:
-                for cond in conditions:
-                    row = [
-                        name,
-                        cond.get("condition", "N/A"),
-                        ", ".join(tables_applied) if tables_applied else "None",
-                        "\n".join(logic) if logic else "No logic"
-                    ]
-                    ws_apply.append(row)
-            else:
-                # Direct table applications
-                row = [
-                    name,
-                    "Always (no condition)",
-                    ", ".join(tables_applied) if tables_applied else "None",
-                    "\n".join(logic) if logic else "No logic"
-                ]
-                ws_apply.append(row)
-            
-            # Add borders
-            for col in range(1, len(headers_apply) + 1):
-                cell = ws_apply.cell(row=ws_apply.max_row, column=col)
-                cell.border = border
-                cell.alignment = Alignment(wrap_text=True, vertical='top')
-    
-    ws_apply.column_dimensions['A'].width = 20
-    ws_apply.column_dimensions['B'].width = 40
-    ws_apply.column_dimensions['C'].width = 30
-    ws_apply.column_dimensions['D'].width = 50
-    
-    # Sheet 3: Actions
-    ws_actions = wb.create_sheet("Actions")
-    ws_actions.append(["Action Definitions"])
-    ws_actions.merge_cells('A1:E1')
-    ws_actions['A1'].font = title_font
-    ws_actions['A1'].alignment = Alignment(horizontal='center', vertical='center')
-    
-    ws_actions.append([])
-    headers_actions = ["Control Block", "Action Name", "Parameters", "Operations", "Description"]
-    ws_actions.append(headers_actions)
-    
-    # Style header row
-    for col in range(1, len(headers_actions) + 1):
-        cell = ws_actions.cell(row=3, column=col)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = Alignment(horizontal='center', vertical='center')
-        cell.border = border
-    
-    for name, info in structure.items():
-        if not name.startswith("_") and info.get("type") == "control":
-            actions = info.get("actions", [])
-            for action in actions:
-                params = action.get("parameters", [])
-                param_str = ", ".join([f"{p.get('type', '')} {p.get('name', '')}" for p in params])
-                operations = ", ".join(action.get("operations", []))
-                
-                row = [
-                    name,
-                    action.get("name", "N/A"),
-                    param_str if param_str else "None",
-                    operations if operations else "N/A",
-                    action.get("body_preview", "N/A")[:100]
-                ]
-                ws_actions.append(row)
-                
-                # Add borders
-                for col in range(1, len(headers_actions) + 1):
-                    cell = ws_actions.cell(row=ws_actions.max_row, column=col)
-                    cell.border = border
-                    cell.alignment = Alignment(wrap_text=True, vertical='top')
-    
-    ws_actions.column_dimensions['A'].width = 20
-    ws_actions.column_dimensions['B'].width = 20
-    ws_actions.column_dimensions['C'].width = 30
-    ws_actions.column_dimensions['D'].width = 25
-    ws_actions.column_dimensions['E'].width = 50
-    
     # Save to temporary file
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
     wb.save(temp_file.name)
@@ -302,15 +191,24 @@ def create_excel_export(structure: dict, filename: str) -> str:
 
 
 @app.post("/export-excel")
-async def export_excel(structure: Dict[str, Any] = Body(...)):
+async def export_excel(
+    structure: Dict[str, Any] = Body(...),
+    background_tasks: BackgroundTasks = None
+):
     """Export P4 structure to Excel format."""
     try:
         filename = structure.get("_filename", "p4_export")
         excel_path = create_excel_export(structure, filename)
+        
+        # Schedule cleanup after response is sent
+        if background_tasks:
+            background_tasks.add_task(cleanup_file, excel_path)
+        
         return FileResponse(
             excel_path,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            filename=f"{filename.replace('.p4', '')}_rules.xlsx"
+            filename=f"{filename.replace('.p4', '')}_rules.xlsx",
+            background=background_tasks
         )
     except Exception as e:
         logger.error(f"Error creating Excel export: {str(e)}")
@@ -318,4 +216,3 @@ async def export_excel(structure: Dict[str, Any] = Body(...)):
             status_code=500,
             detail=f"Error creating Excel export: {str(e)}"
         )
-

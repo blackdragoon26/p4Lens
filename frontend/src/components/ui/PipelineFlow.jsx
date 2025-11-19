@@ -10,9 +10,16 @@ import {
   FiDatabase,
   FiCode,
   FiZap,
-  FiLayers
+  FiLayers,
+  FiX
 } from "react-icons/fi";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 
 // Pipeline Stage Card Component
 function PipelineStageCard({ stage, index, isActive, onClick, totalStages }) {
@@ -76,8 +83,11 @@ function PipelineStageCard({ stage, index, isActive, onClick, totalStages }) {
         whileHover={{ scale: 1.02, y: -4 }}
         whileTap={{ scale: 0.98 }}
         onClick={onClick}
-        className={`relative bg-white rounded-2xl border-2 ${config.border} shadow-lg cursor-pointer
-          transition-all duration-300 ${isActive ? 'ring-4 ring-blue-400 ring-offset-2' : ''}`}
+        className={cn(
+          "relative bg-card rounded-2xl border-2 shadow-lg cursor-pointer transition-all duration-300",
+          config.border,
+          isActive && "ring-4 ring-primary ring-offset-2"
+        )}
       >
         {/* Header */}
         <div className={`bg-gradient-to-r ${config.gradient} text-white p-6 rounded-t-2xl`}>
@@ -101,24 +111,21 @@ function PipelineStageCard({ stage, index, isActive, onClick, totalStages }) {
 
         {/* Stats */}
         <div className="p-6">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="flex flex-wrap justify-center gap-2">
             {stage.stats.tables > 0 && (
-              <div className="text-center">
-                <div className="text-2xl font-bold text-slate-800">{stage.stats.tables}</div>
-                <div className="text-xs text-gray-500 mt-1">Tables</div>
-              </div>
+              <Badge variant="secondary" className="text-sm px-3 py-1.5">
+                {stage.stats.tables} {stage.stats.tables === 1 ? 'Table' : 'Tables'}
+              </Badge>
             )}
             {stage.stats.actions > 0 && (
-              <div className="text-center">
-                <div className="text-2xl font-bold text-slate-800">{stage.stats.actions}</div>
-                <div className="text-xs text-gray-500 mt-1">Actions</div>
-              </div>
+              <Badge variant="secondary" className="text-sm px-3 py-1.5">
+                {stage.stats.actions} {stage.stats.actions === 1 ? 'Action' : 'Actions'}
+              </Badge>
             )}
             {stage.stats.states > 0 && (
-              <div className="text-center">
-                <div className="text-2xl font-bold text-slate-800">{stage.stats.states}</div>
-                <div className="text-xs text-gray-500 mt-1">States</div>
-              </div>
+              <Badge variant="secondary" className="text-sm px-3 py-1.5">
+                {stage.stats.states} {stage.stats.states === 1 ? 'State' : 'States'}
+              </Badge>
             )}
           </div>
     </div>
@@ -177,44 +184,38 @@ export default function PipelineFlow({ structure }) {
   }
 
   return (
-    <div className="w-screen h-screen relative bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 overflow-hidden">
+    <div className="w-screen h-screen relative bg-background overflow-hidden">
       {/* Top Navigation Bar */}
-      <div className="absolute top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-b border-gray-200 shadow-sm">
+      <div className="absolute top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border shadow-sm">
         <div className="flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold text-slate-800">P4Lens</h1>
+            <h1 className="text-2xl font-bold">P4Lens</h1>
             <div className="flex gap-2">
-              <button
+              <Button
                 onClick={() => {
                   setViewMode("pipeline");
                   setSelected(null);
                 }}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
-                  viewMode === "pipeline"
-                    ? "bg-blue-600 text-white shadow-lg"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
+                variant={viewMode === "pipeline" ? "default" : "outline"}
+                size="sm"
               >
                 Pipeline View
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => {
                   setViewMode("overview");
                   setSelected(null);
                 }}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
-                  viewMode === "overview"
-                    ? "bg-blue-600 text-white shadow-lg"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
+                variant={viewMode === "overview" ? "default" : "outline"}
+                size="sm"
               >
                 Overview
-              </button>
+              </Button>
             </div>
           </div>
-          <div className="text-sm text-gray-600 font-medium">
+          <Badge variant="outline" className="text-sm">
             {structure._filename || "P4 Program"}
-          </div>
+          </Badge>
         </div>
       </div>
 
@@ -223,8 +224,8 @@ export default function PipelineFlow({ structure }) {
         {viewMode === "pipeline" && (
           <div className="max-w-4xl mx-auto px-6 py-8">
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-slate-800 mb-2">P4 Pipeline Flow</h2>
-              <p className="text-gray-600">Click on any stage to explore its details</p>
+              <h2 className="text-3xl font-bold text-foreground mb-2">P4 Pipeline Flow</h2>
+              <p className="text-muted-foreground">Click on any stage to explore its details</p>
             </div>
 
             <div className="space-y-8">
@@ -286,63 +287,68 @@ function DetailedPanel({ stage, globalTables, globalHeaders, globalExterns, onCl
       animate={{ x: 0 }}
       exit={{ x: "100%" }}
       transition={{ type: "spring", damping: 25, stiffness: 200 }}
-      className="fixed right-0 top-20 bottom-0 w-[600px] z-40 bg-white shadow-2xl border-l border-gray-200 overflow-hidden flex flex-col"
+      className="fixed right-0 top-20 bottom-0 w-[600px] z-40 bg-background shadow-2xl border-l border-border overflow-hidden flex flex-col"
     >
       {/* Header */}
       <div className="bg-gradient-to-r from-slate-800 to-slate-900 text-white p-6 border-b border-slate-700">
         <div className="flex items-start justify-between">
           <div>
             <h2 className="text-2xl font-bold mb-1">{stage.name}</h2>
-            <div className="text-sm opacity-80 uppercase tracking-wide">{info.type}</div>
+            <div className="flex items-center gap-2 mt-2">
+              <Badge variant="outline" className="text-xs bg-white/10 border-white/20 text-white">
+                {info.type}
+              </Badge>
+            </div>
           </div>
-          <button
+          <Button
             onClick={onClose}
-            className="text-white/80 hover:text-white text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition"
+            variant="ghost"
+            size="icon"
+            className="text-white/80 hover:text-white hover:bg-white/10"
           >
-            ×
-          </button>
+            <FiX className="w-5 h-5" />
+          </Button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 bg-gray-50">
-        {["deep-dive", "tables", "actions", "flow"].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`flex-1 px-4 py-3 text-sm font-medium transition ${
-              activeTab === tab
-                ? "text-blue-600 border-b-2 border-blue-600 bg-white"
-                : "text-gray-600 hover:text-gray-800 hover:bg-gray-100"
-            }`}
-          >
-            {tab === "deep-dive" ? "Deep Dive" : tab.charAt(0).toUpperCase() + tab.slice(1)}
-          </button>
-        ))}
+      <div className="px-6 pt-4 border-b border-border bg-muted/30">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="deep-dive">Deep Dive</TabsTrigger>
+            <TabsTrigger value="tables">Tables</TabsTrigger>
+            <TabsTrigger value="actions">Actions</TabsTrigger>
+            <TabsTrigger value="flow">Flow</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6">
-        {activeTab === "deep-dive" && (
-          <DeepDiveTab
-            info={info}
-            states={states}
-            extracts={extracts}
-            transitions={transitions}
-            applyLogic={applyLogic}
-            globalHeaders={globalHeaders}
-          />
-        )}
-        {activeTab === "tables" && (
-          <TablesTabDetailed tables={tables} globalTables={globalTables} />
-        )}
-        {activeTab === "actions" && (
-          <ActionsTabDetailed actions={actions} />
-        )}
-        {activeTab === "flow" && (
-          <FlowTab applyLogic={applyLogic} tables={tables} globalTables={globalTables} />
-        )}
-      </div>
+      <ScrollArea className="flex-1">
+        <div className="p-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsContent value="deep-dive" className="mt-0">
+              <DeepDiveTab
+                info={info}
+                states={states}
+                extracts={extracts}
+                transitions={transitions}
+                applyLogic={applyLogic}
+                globalHeaders={globalHeaders}
+              />
+            </TabsContent>
+            <TabsContent value="tables" className="mt-0">
+              <TablesTabDetailed tables={tables} globalTables={globalTables} />
+            </TabsContent>
+            <TabsContent value="actions" className="mt-0">
+              <ActionsTabDetailed actions={actions} />
+            </TabsContent>
+            <TabsContent value="flow" className="mt-0">
+              <FlowTab applyLogic={applyLogic} tables={tables} globalTables={globalTables} />
+            </TabsContent>
+          </Tabs>
+        </div>
+      </ScrollArea>
     </motion.div>
   );
 }
