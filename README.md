@@ -2,6 +2,8 @@
 
 **Interactive P4 Program Visualizer** - Upload and visualize P4 programs with an intuitive, interactive pipeline flow diagram.
 
+> Crafted by [Sankalp Jha](https://sankalpjha.dev)
+
 ![P4Lens](https://img.shields.io/badge/P4-Visualization-blue)
 ![Python](https://img.shields.io/badge/python-3.11-blue)
 ![React](https://img.shields.io/badge/react-19.1-blue)
@@ -42,6 +44,16 @@ p4Lens/
 ## 🚀 Quick Start
 
 ### Option 1: Local Development
+
+You can bootstrap everything with the helper script:
+
+```bash
+./start.sh             # local FastAPI + Vite dev servers
+./start.sh docker      # production-like docker compose stack
+./stop.sh              # stops either mode (auto-detects docker)
+```
+
+The script automatically installs dependencies, manages background processes, and cleans up containers so you don't get orphaned docker instances.
 
 #### Prerequisites
 - Python 3.11+
@@ -394,9 +406,15 @@ MIT License - feel free to use this project for your own purposes.
 - For large programs, use the minimap to navigate
 - Click on nodes to see detailed information
 
+## ☁️ Deployment Notes
+
+- **Nginx / EC2**: Build the frontend (`npm run build` in `frontend/`) and serve the `dist` directory with Nginx. Point `VITE_API_BASE` (or `window.API_BASE` env) to your FastAPI endpoint (e.g., `https://api.yourdomain.com`). Run the backend with `uvicorn` or `docker-compose up -d backend`.
+- **Vercel / Static Hosts**: Set `VITE_API_BASE` in your project/environment to the public URL of the backend. Deploy the backend separately (e.g., Fly.io, Render, AWS).
+- **Docker**: `docker compose up -d --build` launches both services with correct service-to-service networking and health checks.
+
 ## 📞 Support
 
-For issues, questions, or suggestions, please open an issue on GitHub.
+For issues, questions, or suggestions, please open an issue on GitHub or reach out via [sankalpjha.dev](https://sankalpjha.dev).
 
 ---
 
