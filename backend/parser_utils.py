@@ -4,17 +4,19 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
 
 
-def extract_brace_block(code: str, start_index: int) -> Tuple[Optional[str], Optional[int]]:
+def extract_brace_block(
+    code: str, start_index: int
+) -> Tuple[Optional[str], Optional[int]]:
     """Extract content between matching braces starting at start_index."""
     brace_count = 0
     body = []
     for i in range(start_index, len(code)):
         c = code[i]
-        if c == '{':
+        if c == "{":
             brace_count += 1
             if brace_count == 1:
                 continue
-        elif c == '}':
+        elif c == "}":
             brace_count -= 1
             if brace_count == 0:
                 return "".join(body), i
@@ -30,33 +32,33 @@ def extract_apply_block_logic(code: str, control_name: str) -> Dict[str, Any]:
     match = re.search(control_pattern, code, re.MULTILINE)
     if not match:
         return {"logic": [], "conditions": [], "tables_applied": []}
-    
+
     # Extract the entire control block
     block_start = match.end()
     block_body, _ = extract_brace_block(code, block_start - 1)
     if not block_body:
         return {"logic": [], "conditions": [], "tables_applied": []}
-    
+
     # Find apply block
     apply_match = re.search(r"apply\s*\{", block_body)
     if not apply_match:
         return {"logic": [], "conditions": [], "tables_applied": []}
-    
+
     apply_start = apply_match.end()
     apply_body, _ = extract_brace_block(block_body, apply_start - 1)
     if not apply_body:
         return {"logic": [], "conditions": [], "tables_applied": []}
-    
+
     # Parse apply block content
     logic = []
     conditions = []
     tables_applied = []
-    
+
     # Extract if conditions (handle nested braces properly)
     # First, find all if statements with proper brace matching
     i = 0
     while i < len(apply_body):
-        if apply_body[i:i+2] == "if":
+        if apply_body[i : i + 2] == "if":
             # Find the condition
             paren_start = apply_body.find("(", i)
             if paren_start == -1:
@@ -66,51 +68,53 @@ def extract_apply_block_logic(code: str, control_name: str) -> Dict[str, Any]:
             if paren_end == -1:
                 i += 1
                 continue
-            
-            condition = apply_body[paren_start+1:paren_end].strip()
-            
+
+            condition = apply_body[paren_start + 1 : paren_end].strip()
+
             # Find the opening brace
             brace_start = apply_body.find("{", paren_end)
             if brace_start == -1:
                 i += 1
                 continue
-            
+
             # Extract the body with proper brace matching
             if_body, brace_end = extract_brace_block(apply_body, brace_start)
             if if_body is not None:
-                conditions.append({
-                    "condition": condition,
-                    "body": if_body,
-                    "type": "if"
-                })
+                conditions.append(
+                    {"condition": condition, "body": if_body, "type": "if"}
+                )
                 # Extract tables from if body
                 tables_in_if = re.findall(r"(\w+)\.apply\(\)", if_body)
                 tables_applied.extend(tables_in_if)
-                logic.append(f"if ({condition}) then apply: {', '.join(tables_in_if) if tables_in_if else 'no tables'}")
+                logic.append(
+                    f"if ({condition}) then apply: {', '.join(tables_in_if) if tables_in_if else 'no tables'}"
+                )
                 i = brace_end + 1
             else:
                 i += 1
         else:
             i += 1
-    
+
     # Extract direct table applications (not in if blocks)
     # Build a cleaned version without if blocks
     cleaned_body = apply_body
     for cond in conditions:
         # Remove this condition's body from cleaned_body
         cond_pattern = f"if\\s*\\(\\s*{re.escape(cond['condition'])}\\s*\\)\\s*\\{{"
-        cleaned_body = re.sub(cond_pattern + r"[^}]*\}", "", cleaned_body, flags=re.DOTALL)
-    
+        cleaned_body = re.sub(
+            cond_pattern + r"[^}]*\}", "", cleaned_body, flags=re.DOTALL
+        )
+
     direct_tables = re.findall(r"(\w+)\.apply\(\)", cleaned_body)
     tables_applied.extend(direct_tables)
     for table in direct_tables:
         logic.append(f"apply {table}()")
-    
+
     return {
         "logic": logic,
         "conditions": conditions,
         "tables_applied": list(set(tables_applied)),  # Remove duplicates
-        "raw_apply_body": apply_body.strip()
+        "raw_apply_body": apply_body.strip(),
     }
 
 
@@ -120,12 +124,12 @@ def extract_actions_from_control(code: str, control_name: str) -> List[Dict[str,
     match = re.search(control_pattern, code, re.MULTILINE)
     if not match:
         return []
-    
+
     block_start = match.end()
     block_body, _ = extract_brace_block(code, block_start - 1)
     if not block_body:
         return []
-    
+
     actions = []
     # Find all action definitions
     action_pattern = r"action\s+(\w+)\s*\(([^)]*)\)\s*\{([^}]+)\}"
@@ -133,7 +137,7 @@ def extract_actions_from_control(code: str, control_name: str) -> List[Dict[str,
         action_name = action_match.group(1)
         params = action_match.group(2).strip()
         body = action_match.group(3).strip()
-        
+
         # Parse parameters
         param_list = []
         if params:
@@ -142,11 +146,8 @@ def extract_actions_from_control(code: str, control_name: str) -> List[Dict[str,
                 if p:
                     parts = p.split()
                     if len(parts) >= 2:
-                        param_list.append({
-                            "type": parts[0],
-                            "name": parts[-1]
-                        })
-        
+                        param_list.append({"type": parts[0], "name": parts[-1]})
+
         # Extract action body operations
         operations = []
         if "mark_to_drop" in body:
@@ -155,20 +156,22 @@ def extract_actions_from_control(code: str, control_name: str) -> List[Dict[str,
             operations.append("set_egress_port")
         if "hdr." in body:
             operations.append("modify_headers")
-        
-        actions.append({
-            "name": action_name,
-            "parameters": param_list,
-            "operations": operations,
-            "body_preview": body[:200] + "..." if len(body) > 200 else body
-        })
-    
+
+        actions.append(
+            {
+                "name": action_name,
+                "parameters": param_list,
+                "operations": operations,
+                "body_preview": body[:200] + "..." if len(body) > 200 else body,
+            }
+        )
+
     return actions
 
 
 def parse_p4_structure(path: str) -> Dict[str, Any]:
     """Parse P4 file and extract comprehensive structure."""
-    with open(path, encoding='utf-8') as f:
+    with open(path, encoding="utf-8") as f:
         code = f.read()
 
     structure = {}
@@ -183,7 +186,7 @@ def parse_p4_structure(path: str) -> Dict[str, Any]:
                 "externs": [],
                 "consts": [],
                 "headers": [],
-                "apply_logic": {}
+                "apply_logic": {},
             }
 
     # --- Tables: match fields + keys + actions ---
@@ -198,33 +201,39 @@ def parse_p4_structure(path: str) -> Dict[str, Any]:
         full_table = match.group(2)
         keys_raw = match.group(3)
         acts_raw = match.group(4)
-        
-        keys = [k.strip().replace("\n", " ").replace("\t", " ") 
-                for k in keys_raw.split(";") if k.strip()]
-        acts = [a.strip().split("(")[0].strip() 
-                for a in acts_raw.split(";") if a.strip()]
-        
+
+        keys = [
+            k.strip().replace("\n", " ").replace("\t", " ")
+            for k in keys_raw.split(";")
+            if k.strip()
+        ]
+        acts = [
+            a.strip().split("(")[0].strip() for a in acts_raw.split(";") if a.strip()
+        ]
+
         # Extract table properties
         size_match = re.search(r"size\s*=\s*(\d+)", full_table)
         size = int(size_match.group(1)) if size_match else None
-        
-        default_action_match = re.search(r"default_action\s*=\s*(\w+)\s*\([^)]*\)", full_table)
+
+        default_action_match = re.search(
+            r"default_action\s*=\s*(\w+)\s*\([^)]*\)", full_table
+        )
         default_action = default_action_match.group(1) if default_action_match else None
-        
+
         tables[name] = {
             "keys": keys,
             "actions": acts,
             "size": size,
-            "default_action": default_action
+            "default_action": default_action,
         }
-    
+
     # --- Extract actions from control blocks ---
     control_actions = {}
     for name in structure.keys():
         if structure[name]["type"] == "control":
             control_actions[name] = extract_actions_from_control(code, name)
             structure[name]["actions"] = control_actions[name]
-    
+
     # --- Extract apply block logic ---
     for name in structure.keys():
         if structure[name]["type"] == "control":
@@ -246,7 +255,7 @@ def parse_p4_structure(path: str) -> Dict[str, Any]:
                     states = re.findall(r"state\s+(\w+)\s*\{", block_body)
                     extracts = re.findall(r"packet\.extract\(([^)]+)\)", block_body)
                     transitions = re.findall(r"transition\s+(\w+)", block_body)
-                    
+
                     structure[name]["states"] = states
                     structure[name]["extracts"] = extracts
                     structure[name]["transitions"] = transitions
@@ -275,11 +284,13 @@ def parse_p4_structure(path: str) -> Dict[str, Any]:
                 if len(parts) == 2:
                     field_name = parts[0].strip()
                     field_type = parts[1].strip()
-                    fields.append({
-                        "field": field_name,
-                        "bits": field_type,
-                        "type": "bit" if "bit<" in field_type else "other"
-                    })
+                    fields.append(
+                        {
+                            "field": field_name,
+                            "bits": field_type,
+                            "type": "bit" if "bit<" in field_type else "other",
+                        }
+                    )
         header_defs[name] = fields
 
     # --- Assemble global info ---
@@ -295,4 +306,5 @@ def parse_p4_structure(path: str) -> Dict[str, Any]:
 
 if __name__ == "__main__":
     import sys
+
     print(json.dumps(parse_p4_structure(sys.argv[1]), indent=2))
