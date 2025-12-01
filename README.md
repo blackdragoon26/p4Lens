@@ -9,7 +9,7 @@
 ![React](https://img.shields.io/badge/react-19.1-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green)
 
-## 🌟 Features
+## Features
 
 - **Interactive Visualization**: Explore P4 program structure with an interactive flow diagram
 - **Pipeline Analysis**: Visualize Parser, Ingress Control, Egress Control, and Deparser
@@ -20,7 +20,7 @@
 - **Real-time Parsing**: Upload and parse P4 files instantly
 - **Beautiful UI**: Modern, responsive design with Tailwind CSS and React Flow
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 p4Lens/
@@ -41,7 +41,7 @@ p4Lens/
 └── docker-compose.yml
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Option 1: Local Development
 
@@ -365,7 +365,7 @@ npm run preview
 npm run lint
 ```
 
-## 📝 Parser Capabilities
+## Parser Capabilities
 
 The P4 parser extracts:
 
@@ -377,7 +377,7 @@ The P4 parser extracts:
 - **Externs**: Counter, Meter, Register, Digest objects
 - **Constants & Enums**: Named values
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Feel free to:
 
@@ -390,7 +390,7 @@ Contributions are welcome! Feel free to:
 
 MIT License - feel free to use this project for your own purposes.
 
-## 🐛 Known Issues & Future Work
+## Known Issues & Future Work
 
 - [ ] Support for more complex P4 constructs
 - [ ] P4Runtime integration
