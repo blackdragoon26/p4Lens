@@ -1,5 +1,5 @@
-import React, { useMemo, useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useMemo, useState } from "react";
+import { motion as Motion, AnimatePresence } from "framer-motion";
 import { 
   FiChevronRight, 
   FiChevronDown, 
@@ -16,10 +16,14 @@ import {
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+
+const DEFAULT_CREATOR = {
+  name: "Sankalp Jha",
+  url: "https://sankalpjha.dev",
+};
 
 // Pipeline Stage Card Component
 function PipelineStageCard({ stage, index, isActive, onClick, totalStages }) {
@@ -62,7 +66,7 @@ function PipelineStageCard({ stage, index, isActive, onClick, totalStages }) {
   const Icon = config.icon;
 
   return (
-    <motion.div
+    <Motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1 }}
@@ -71,7 +75,7 @@ function PipelineStageCard({ stage, index, isActive, onClick, totalStages }) {
       {/* Connection Line */}
       {index < totalStages - 1 && (
         <div className="absolute left-1/2 top-full w-0.5 h-16 bg-gradient-to-b from-blue-300 to-blue-200 transform -translate-x-1/2 z-0">
-          <motion.div
+          <Motion.div
             className="absolute top-0 left-1/2 w-3 h-3 bg-blue-500 rounded-full transform -translate-x-1/2"
             animate={{ y: [0, 60, 0] }}
             transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
@@ -79,7 +83,7 @@ function PipelineStageCard({ stage, index, isActive, onClick, totalStages }) {
         </div>
       )}
 
-      <motion.div
+      <Motion.div
         whileHover={{ scale: 1.02, y: -4 }}
         whileTap={{ scale: 0.98 }}
         onClick={onClick}
@@ -129,18 +133,17 @@ function PipelineStageCard({ stage, index, isActive, onClick, totalStages }) {
             )}
           </div>
     </div>
-      </motion.div>
-    </motion.div>
+      </Motion.div>
+    </Motion.div>
   );
 }
 
-export default function PipelineFlow({ structure }) {
+export default function PipelineFlow({ structure, creator = DEFAULT_CREATOR }) {
   const [selected, setSelected] = useState(null);
   const [viewMode, setViewMode] = useState("pipeline");
 
   const globalTables = structure?._tables || {};
   const globalHeaders = structure?._headers || {};
-  const globalExterns = structure?._externs || {};
 
   // Organize pipeline stages
   const pipelineStages = useMemo(() => {
@@ -213,9 +216,22 @@ export default function PipelineFlow({ structure }) {
               </Button>
             </div>
           </div>
-          <Badge variant="outline" className="text-sm">
-            {structure._filename || "P4 Program"}
-          </Badge>
+          <div className="flex items-center gap-4">
+            <div className="text-xs text-muted-foreground">
+              Built by{" "}
+              <a
+                href={creator?.url || DEFAULT_CREATOR.url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary font-semibold hover:underline"
+              >
+                {creator?.name || DEFAULT_CREATOR.name}
+              </a>
+            </div>
+            <Badge variant="outline" className="text-sm">
+              {structure._filename || "P4 Program"}
+            </Badge>
+          </div>
         </div>
       </div>
 
@@ -245,7 +261,6 @@ export default function PipelineFlow({ structure }) {
 
         {viewMode === "overview" && (
           <OverviewView
-            structure={structure}
             pipelineStages={pipelineStages}
             globalTables={globalTables}
             globalHeaders={globalHeaders}
@@ -260,7 +275,6 @@ export default function PipelineFlow({ structure }) {
             stage={selected}
             globalTables={globalTables}
             globalHeaders={globalHeaders}
-            globalExterns={globalExterns}
             onClose={() => setSelected(null)}
           />
         )}
@@ -270,7 +284,7 @@ export default function PipelineFlow({ structure }) {
 }
 
 // Comprehensive Detailed Panel Component
-function DetailedPanel({ stage, globalTables, globalHeaders, globalExterns, onClose }) {
+function DetailedPanel({ stage, globalTables, globalHeaders, onClose }) {
   const [activeTab, setActiveTab] = useState("deep-dive");
 
   const info = stage.info;
@@ -282,7 +296,7 @@ function DetailedPanel({ stage, globalTables, globalHeaders, globalExterns, onCl
   const transitions = info.transitions || [];
 
   return (
-    <motion.div
+    <Motion.div
       initial={{ x: "100%" }}
       animate={{ x: 0 }}
       exit={{ x: "100%" }}
@@ -344,12 +358,12 @@ function DetailedPanel({ stage, globalTables, globalHeaders, globalExterns, onCl
               <ActionsTabDetailed actions={actions} />
             </TabsContent>
             <TabsContent value="flow" className="mt-0">
-              <FlowTab applyLogic={applyLogic} tables={tables} globalTables={globalTables} />
+              <FlowTab applyLogic={applyLogic} />
             </TabsContent>
           </Tabs>
         </div>
       </ScrollArea>
-    </motion.div>
+    </Motion.div>
   );
 }
 
@@ -360,7 +374,7 @@ function DeepDiveTab({ info, states, extracts, transitions, applyLogic, globalHe
   return (
     <div className="space-y-6">
       {/* What is this stage? */}
-      <motion.div
+      <Motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 p-5 rounded-lg"
@@ -393,11 +407,11 @@ function DeepDiveTab({ info, states, extracts, transitions, applyLogic, globalHe
             order, ensuring the packet is properly formatted before being sent out.
           </p>
         )}
-      </motion.div>
+      </Motion.div>
 
       {/* Parser-specific details */}
       {type === "parser" && states && states.length > 0 && (
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -426,12 +440,12 @@ function DeepDiveTab({ info, states, extracts, transitions, applyLogic, globalHe
               </div>
             ))}
           </div>
-        </motion.div>
+        </Motion.div>
       )}
 
       {/* Control-specific details */}
       {type === "control" && applyLogic && applyLogic.raw_apply_body && (
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
@@ -450,12 +464,12 @@ function DeepDiveTab({ info, states, extracts, transitions, applyLogic, globalHe
               in traditional programming. It defines the execution flow - which tables to apply and under what conditions.
             </p>
           </div>
-        </motion.div>
+        </Motion.div>
       )}
 
       {/* Headers Reference */}
       {Object.keys(globalHeaders).length > 0 && (
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
@@ -481,7 +495,7 @@ function DeepDiveTab({ info, states, extracts, transitions, applyLogic, globalHe
               </div>
             ))}
           </div>
-        </motion.div>
+        </Motion.div>
       )}
     </div>
   );
@@ -505,7 +519,7 @@ function TablesTabDetailed({ tables, globalTables }) {
         if (!table) return null;
 
         return (
-          <motion.div
+          <Motion.div
             key={i}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -556,7 +570,7 @@ function TablesTabDetailed({ tables, globalTables }) {
                 </div>
               </div>
             </div>
-          </motion.div>
+          </Motion.div>
         );
       })}
     </div>
@@ -577,7 +591,7 @@ function ActionsTabDetailed({ actions }) {
   return (
     <div className="space-y-6">
       {actions.map((action, i) => (
-        <motion.div
+        <Motion.div
           key={i}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -613,14 +627,14 @@ function ActionsTabDetailed({ actions }) {
               )}
             </div>
           )}
-        </motion.div>
+        </Motion.div>
       ))}
     </div>
   );
 }
 
 // Flow Tab
-function FlowTab({ applyLogic, tables, globalTables }) {
+function FlowTab({ applyLogic }) {
   return (
     <div className="space-y-6">
       <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border-l-4 border-emerald-500 p-5 rounded-lg">
@@ -653,7 +667,7 @@ function FlowTab({ applyLogic, tables, globalTables }) {
 }
 
 // Overview View
-function OverviewView({ structure, pipelineStages, globalTables, globalHeaders }) {
+function OverviewView({ pipelineStages, globalTables, globalHeaders }) {
   return (
     <div className="max-w-6xl mx-auto px-6 py-8">
       <div className="text-center mb-8">
@@ -662,15 +676,15 @@ function OverviewView({ structure, pipelineStages, globalTables, globalHeaders }
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="bg-white rounded-xl p-6 shadow-lg border border-gray-200"
         >
           <div className="text-3xl font-bold text-blue-600">{pipelineStages.length}</div>
           <div className="text-sm text-gray-600 mt-2">Pipeline Stages</div>
-        </motion.div>
-        <motion.div
+        </Motion.div>
+        <Motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.1 }}
@@ -678,8 +692,8 @@ function OverviewView({ structure, pipelineStages, globalTables, globalHeaders }
         >
           <div className="text-3xl font-bold text-emerald-600">{Object.keys(globalTables).length}</div>
           <div className="text-sm text-gray-600 mt-2">Match-Action Tables</div>
-        </motion.div>
-        <motion.div
+        </Motion.div>
+        <Motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.2 }}
@@ -687,8 +701,8 @@ function OverviewView({ structure, pipelineStages, globalTables, globalHeaders }
         >
           <div className="text-3xl font-bold text-purple-600">{Object.keys(globalHeaders).length}</div>
           <div className="text-sm text-gray-600 mt-2">Header Types</div>
-        </motion.div>
-        <motion.div
+        </Motion.div>
+        <Motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.3 }}
@@ -698,7 +712,7 @@ function OverviewView({ structure, pipelineStages, globalTables, globalHeaders }
             {pipelineStages.reduce((sum, s) => sum + (s.stats.actions || 0), 0)}
           </div>
           <div className="text-sm text-gray-600 mt-2">Total Actions</div>
-        </motion.div>
+        </Motion.div>
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">

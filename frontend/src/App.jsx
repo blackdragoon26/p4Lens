@@ -7,6 +7,17 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { FiUpload, FiCheckCircle, FiAlertCircle } from "react-icons/fi";
 
+const defaultApiBase =
+  typeof window !== "undefined" && window.location.origin.includes("localhost")
+    ? "http://localhost:8000"
+    : "/api";
+
+const API_BASE = (import.meta.env.VITE_API_BASE || defaultApiBase).replace(/\/$/, "");
+const CREATOR = {
+  name: "Sankalp Jha",
+  url: "https://sankalpjha.dev",
+};
+
 export default function App() {
   const [file, setFile] = useState(null);
   const [structure, setStructure] = useState(null);
@@ -24,7 +35,9 @@ export default function App() {
     try {
       const form = new FormData();
       form.append("file", file);
-      const res = await axios.post("/api/upload", form);
+      const res = await axios.post(`${API_BASE}/upload`, form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
       console.log("Parsed structure:", res.data.structure);
       setStructure(res.data.structure);
     } catch (err) {
@@ -53,6 +66,17 @@ export default function App() {
             P4Lens
           </h1>
           <p className="text-slate-700 text-xl font-medium">Professional P4 Program Visualizer</p>
+          <p className="text-slate-600 text-sm mt-2">
+            Crafted by{" "}
+            <a
+              href={CREATOR.url}
+              target="_blank"
+              rel="noreferrer"
+              className="text-blue-600 font-semibold hover:underline"
+            >
+              {CREATOR.name}
+            </a>
+          </p>
           <div className="flex items-center justify-center gap-2 mt-3">
             <Badge variant="secondary" className="text-xs">P4₁₄</Badge>
             <Badge variant="secondary" className="text-xs">P4₁₆</Badge>
@@ -163,7 +187,7 @@ export default function App() {
   // Visualization View
   return (
     <div className="w-full h-screen relative overflow-hidden">
-      <PipelineFlow structure={structure} />
+      <PipelineFlow structure={structure} creator={CREATOR} />
       <div className="absolute top-24 left-6 z-10">
         <Button
           onClick={reset}
